@@ -14,7 +14,12 @@ if vtk_version is None:
     import vtk
     vtk_version = vtk.__version__
 
-vtk_openvr_module_source_dir = Path(__file__).parent.resolve()
+module_source_dir = Path(__file__).parent.resolve()
+
+# change this to the actual module name and path
+vtk_module_name = "MyModule"
+vtk_module_source_dir = module_source_dir / "src"
+
 
 def auto_download_vtk_wheel_sdk():
     # Automatically download the VTK wheel SDK based upon the current platform
@@ -68,7 +73,7 @@ def auto_download_vtk_wheel_sdk():
     full_name = f'{prefix}-{sdk_version}-{py_version}-{platform_suffix}.tar.xz'
     url = f'{base_url}{full_name}'
 
-    script_path = str(vtk_openvr_module_source_dir /
+    script_path = str(module_source_dir /
                       'FetchFromUrl.cmake')
 
     cmd = [
@@ -93,7 +98,7 @@ def auto_download_vtk_external_module():
         return external_module_path.as_posix()
 
     # Run the script to download it
-    script_path = str(vtk_openvr_module_source_dir /
+    script_path = str(module_source_dir /
                       'FetchVTKExternalModule.cmake')
     cmd = [
         'cmake',
@@ -106,15 +111,19 @@ def auto_download_vtk_external_module():
 
 
 def auto_download_vtk_source_tree():
-    # Automatically downloads the vtk source tree corresponding to the installed vtk version
+    """
+    Automatically downloads the vtk source tree corresponding to the installed or specified vtk version.
+    If this module does not build an optional module not contained in the vtk wheels already, this function can
+    be removed safely.
+    """
 
     vtk_source_path = Path('.').resolve() / '_deps/VTK'
     if vtk_source_path.exists():
         # It must have already been downloaded. Just return it.
         return vtk_source_path.as_posix()
     # Run the script to download it
-    script_path = str(vtk_openvr_module_source_dir /
-                      'FetchVTKSourcetree.cmake')
+    script_path = str(module_source_dir /
+                      'FetchVTKSourceTree.cmake')
     cmd = [
         'cmake',
         '-DFETCH_VTK_INSTALL_LOCATION=' +
@@ -130,11 +139,6 @@ vtk_wheel_sdk_path = os.getenv('VTK_WHEEL_SDK_PATH')
 if vtk_wheel_sdk_path is None:
     vtk_wheel_sdk_path = auto_download_vtk_wheel_sdk()
 
-# check that vtkRenderingopenvr is not part of the wheel
-cmake_glob = list(Path(vtk_wheel_sdk_path).glob('**/vtkmodules/vtkRenderingOpenVR.pyi'))
-if len(cmake_glob) >= 1:
-    raise ValueError("RenderingOpenVR is already part of the python wheels for vtk. Aborting.")
-
 # Find the cmake dir
 cmake_glob = list(Path(vtk_wheel_sdk_path).glob('**/headers/cmake'))
 if len(cmake_glob) != 1:
@@ -149,13 +153,13 @@ if vtk_external_module_path is None:
     vtk_external_module_path = auto_download_vtk_external_module()
 
 
-vtk_source_tree_path = os.getenv('VTK_SOURCE_TREE_PATH')
-if vtk_source_tree_path is None:
-    # If it was not provided, clone it into a temporary directory
-    # Since we are using pyproject.toml, it will get removed automatically
-    vtk_source_tree_path = auto_download_vtk_source_tree()
+#vtk_source_tree_path = os.getenv('VTK_SOURCE_TREE_PATH')
+#if vtk_source_tree_path is None:
+#    # If it was not provided, clone it into a temporary directory
+#    # Since we are using pyproject.toml, it will get removed automatically
+#    vtk_source_tree_path = auto_download_vtk_source_tree()
 
-vtk_openvr_sources_path = (Path(vtk_source_tree_path) / "Rendering/OpenVR")
+#vtk_module_source_dir = (Path(vtk_source_tree_path) / "Rendering/OpenVR")
 
 
 python3_executable = os.getenv('Python3_EXECUTABLE')
@@ -168,8 +172,8 @@ if python3_executable is None:
 
 
 cmake_args = [
-    '-DVTK_MODULE_NAME:STRING=RenderingOpenVR',
-    f'-DVTK_MODULE_SOURCE_DIR:PATH={vtk_openvr_sources_path}',
+    f'-DVTK_MODULE_NAME:STRING={vtk_module_name}',
+    f'-DVTK_MODULE_SOURCE_DIR:PATH={vtk_module_source_dir}',
     f'-DVTK_MODULE_CMAKE_MODULE_PATH:PATH={vtk_wheel_sdk_cmake_path}',
     f'-DVTK_DIR:PATH={vtk_wheel_sdk_cmake_path}',
     '-DCMAKE_INSTALL_LIBDIR:STRING=lib',
@@ -188,16 +192,13 @@ else:
     raise ValueError("Only linux is supported right now.")
 
 setup(
-    name="vtk-openvr",
+    name="vtk-mymodule",
     version=vtk_version,
-    author="Felix Igelbrink",
-    author_email="felix.igelbrink@uni-osnabrueck.de",
-    description="VTK's openVR module built as a separate python package",
+    author="Firstname Lastname",
+    author_email="firstname.lastname@foo.com",
+    description="...",
     license="MIT",
-    classifiers=[
-        'Private :: Do Not Upload to pypi server',
-    ],
-    packages=['vtkmodules', 'vtk_openvr'],
+    packages=['vtkmodules', 'vtk_extension'], # important: include the vtkmodules as well, as the built libraries will be placed there
     package_dir={'vtkmodules': 'lib/vtkmodules'},
     install_requires=['numpy'],
     cmake_args=cmake_args,
